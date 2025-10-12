@@ -152,7 +152,7 @@ clean: ## Cleans output directory.
 # Due to https://github.com/golangci/golangci-lint/issues/580, we need to add --fix for windows
 .PHONY: lint
 lint: ## Runs golangci-lint
-	$(GOLANGCI_LINT) run --fix --timeout 5m
+	$(GOLANGCI_LINT) run --fix --timeout 5m ./...
 
 .PHONY: build-bicep
 build-bicep: build-bicep-$(GOOS)-$(GOARCH)

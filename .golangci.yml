@@ -1,15 +1,35 @@
-# see https://golangci-lint.run/usage/configuration/ for documentation
+# see https://golangci-lint.run/docs/configuration/file/ for documentation
+---
+version: "2"
 linters:
   enable:
-  - forbidigo
-linters-settings:
-  forbidigo:
-    # Forbid the following identifiers (list of regexp)
-    #
-    # Add a comment to the offending line with '//nolint:forbidigo' to suppress the rule if
-    # you're working inside the main() function.
-    forbid:
-      # These APIs exit the process. These are OK to use in the main() function,
-      # and not ANYWHERE else.
-      - 'os\.Exit(# Do not use except for inside main(). Suppress this message with //nolint:forbidigo at the end of the line if it is correct.)?'
-      - 'log\.Fatal(f|ln)?(# Do not use except for inside main(). Suppress this message with //nolint:forbidigo at the end of the line if it is correct.)?'
+    - forbidigo
+  settings:
+    forbidigo:
+      # Forbid the following identifiers (list of regexp)
+      #
+      # Add a comment to the offending line with '//nolint:forbidigo' to suppress the rule if
+      # you're working inside the main() function.
+      forbid:
+        # These APIs exit the process. These are OK to use in the main() function,
+        # and not ANYWHERE else.
+        - pattern: 'os\.Exit(# Do not use except for inside main(). Suppress this message with //nolint:forbidigo at the end of the line if it is correct.)?'
+        - pattern: 'log\.Fatal(f|ln)?(# Do not use except for inside main(). Suppress this message with //nolint:forbidigo at the end of the line if it is correct.)?'
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
