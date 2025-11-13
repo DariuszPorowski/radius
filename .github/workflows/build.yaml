@@ -44,9 +44,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # gotestsum version - see: https://github.com/gotestyourself/gotestsum
-  GOTESTSUMVERSION: 1.10.0
-
   # GitHub Actor for pushing images to GHCR
   GHCR_ACTOR: rad-ci-bot
 
@@ -56,14 +53,11 @@ env:
   # Local file path to the release binaries.
   RELEASE_PATH: ./release
 
-  # ORAS (OCI Registry As Storage) CLI version
-  ORAS_VERSION: 1.1.0
-
   # URL to get source code for building the image
   IMAGE_SRC: https://github.com/radius-project/radius
 
   # bicep-types ACR url for uploading Radius Bicep types
-  BICEP_TYPES_REGISTRY: 'biceptypes.azurecr.io'
+  BICEP_TYPES_REGISTRY: "biceptypes.azurecr.io"
 
 jobs:
   build-and-push-cli:
@@ -77,34 +71,40 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target_os: linux
-            target_arch: arm
-          - target_os: linux
-            target_arch: arm64
-          - target_os: linux
-            target_arch: amd64
+        target_os: [linux, windows, darwin]
+        target_arch: [amd64, arm64, arm]
+        exclude:
           - target_os: windows
-            target_arch: amd64
+            target_arch: arm
           - target_os: darwin
-            target_arch: amd64
-          - target_os: darwin
-            target_arch: arm64
+            target_arch: arm # darwin/arm (32-bit) not needed
     steps:
       - name: Check out repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6-beta
         with:
           submodules: recursive
-      - name: Set up Go
-        uses: actions/setup-go@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
           cache: true
+
+      - name: 🚧 Setup Task
+        uses: go-task/setup-task@0ab1b2a65bc55236a3bc64cde78f80e20e8885c2 # v1.0.0
+        with:
+          repo-token: ${{ github.token }}
+
       - name: Parse release version and set environment variables
         run: python ./.github/scripts/get_release_version.py
+
       - name: Make build
         run: make build
+
+      - name: 🔨 Install GoTestSum
+        run: task go:install:gotestsum
+
       - name: Run make test (unit tests)
         if: matrix.target_arch == 'amd64' && matrix.target_os == 'linux'
         env:
@@ -112,17 +112,18 @@ jobs:
           GOTEST_OPTS: "-race -coverprofile ./dist/unit_test/ut_coverage.out"
         run: |
           mkdir -p ./dist/unit_test
-          go install gotest.tools/gotestsum@v${{ env.GOTESTSUMVERSION }}
           make test
+
       - name: Upload coverage to Codecov
         if: matrix.target_arch == 'amd64' && matrix.target_os == 'linux'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           codecov_yml_path: ./.codecov.yml
-          file: ./dist/unit_test/ut_coverage.out
+          files: ./dist/unit_test/ut_coverage.out
           fail_ci_if_error: false
           verbose: true
+
       - name: Process Unit Test Results
         uses: ./.github/actions/process-test-results
         # Always is required here to make sure this target runs even when tests fail.
@@ -131,35 +132,43 @@ jobs:
           test_group_name: "Unit Tests"
           artifact_name: "unit_test_results"
           result_directory: "dist/unit_test/"
+
       - name: Copy cli binaries to release (unix-like)
         if: matrix.target_os != 'windows'
         run: |
           mkdir ${{ env.RELEASE_PATH }}
           cp ./dist/${{ matrix.target_os}}_${{ matrix.target_arch}}/release/rad ${{ env.RELEASE_PATH }}/rad_${{ matrix.target_os}}_${{ matrix.target_arch}}
+
       - name: Copy cli binaries to release (windows)
         if: matrix.target_os == 'windows'
         run: |
           mkdir ${{ env.RELEASE_PATH }}
           cp ./dist/${{ matrix.target_os}}_${{ matrix.target_arch}}/release/rad.exe ${{ env.RELEASE_PATH }}/rad_${{ matrix.target_os}}_${{ matrix.target_arch}}.exe
+
       - name: Upload CLI binary
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: rad_cli_${{ matrix.target_os}}_${{ matrix.target_arch}}
           path: ${{ env.RELEASE_PATH }}
+
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: oras-project/setup-oras@main
-        with:
-          version: ${{ env.ORAS_VERSION }}
+          password: ${{ github.token }}
+
+      - name: 🔨 Install ORAS
+        run: task utils:install:oras
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
       - name: Push latest rad cli binary to GHCR (unix-like)
         if: github.ref == 'refs/heads/main' && matrix.target_os != 'windows'
         run: |
           cp ./dist/${{ matrix.target_os}}_${{ matrix.target_arch}}/release/rad ./rad
           oras push ${{ env.CONTAINER_REGISTRY }}/rad/${{ matrix.target_os }}-${{ matrix.target_arch }}:latest ./rad --annotation "org.opencontainers.image.source=${{ env.IMAGE_SRC }}"
+
       - name: Copy cli binaries to release (windows)
         if: github.ref == 'refs/heads/main' && matrix.target_os == 'windows'
         run: |
@@ -172,29 +181,35 @@ jobs:
     if: github.repository == 'radius-project/radius'
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6-beta
         with:
           submodules: recursive
+
       - name: Parse release version and set environment variables
         run: python ./.github/scripts/get_release_version.py
+
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
           cache: true
+
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ github.token }}
+
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
         with:
           platforms: linux/amd64,linux/arm64,linux/arm/v7
+
       - name: Push container images (latest)
         run: |
           make docker-multi-arch-push
@@ -202,6 +217,7 @@ jobs:
         env:
           DOCKER_REGISTRY: ${{ env.CONTAINER_REGISTRY }}
           DOCKER_TAG_VERSION: latest
+
       - name: Build container images (PR) # Don't push on PR, agent will not have permission.
         run: |
           make docker-multi-arch-build
@@ -209,6 +225,7 @@ jobs:
         env:
           DOCKER_REGISTRY: ${{ env.CONTAINER_REGISTRY }}
           DOCKER_TAG_VERSION: ${{ env.REL_VERSION }} # includes PR number
+
       - name: Push container images (release)
         run: |
           make docker-multi-arch-push
@@ -233,80 +250,100 @@ jobs:
       OCI_REPOSITORY: "radius-project/helm-chart"
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
-      - name: Install helm
-        uses: azure/setup-helm@v4
+        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6-beta
+
+      - name: 🚧 Setup Task
+        uses: go-task/setup-task@0ab1b2a65bc55236a3bc64cde78f80e20e8885c2 # v1.0.0
         with:
-          version: "v3.11.1"
+          repo-token: ${{ github.token }}
+
+      - name: 🔨 Install Helm
+        run: task k8s:install:helm
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
       - name: Parse release version and set environment variables
         run: python ./.github/scripts/get_release_version.py
+
       - name: Run Helm linter
         run: |
           helm lint ${{ env.HELM_CHARTS_DIR }}
+
       - name: Package Helm chart
         run: |
           mkdir -p ${{ env.ARTIFACT_DIR }}/${{ env.HELM_PACKAGE_DIR }}
           helm package ${{ env.HELM_CHARTS_DIR }} --version ${{ env.CHART_VERSION }} --app-version ${{ env.REL_VERSION }} --destination ${{ env.ARTIFACT_DIR }}/${{ env.HELM_PACKAGE_DIR }}
+
       # TODO: Delete this step once we use GHCR as the helm chart repo.
-      # Cannot use Workload Identity because azure federated identity doesn't accept wildcard tag version.
-      - name: Setup Azure CLI
-        run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      - name: az CLI login
-        run: |
-          az login --service-principal \
-            --username ${{ secrets.AZURE_SP_TESTS_APPID }} \
-            --password ${{ secrets.AZURE_SP_TESTS_PASSWORD }} \
-            --tenant ${{ secrets.AZURE_SP_TESTS_TENANTID }}
+      # SP WILDCARD setup https://learn.microsoft.com/en-us/entra/workload-id/workload-identities-flexible-federated-identity-credentials?tabs=github
+      - name: Login to Azure using OIDC
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+        with:
+          client-id: ${{ secrets.AZURE_SP_TESTS_APPID }}
+          tenant-id: ${{ secrets.AZURE_SP_TESTS_TENANTID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTIONID_TESTS }}
+
       - name: Push helm chart to GHCR
         run: |
-          echo ${{ secrets.GITHUB_TOKEN }} | helm registry login -u ${{ github.actor }} --password-stdin ${{ env.OCI_REGISTRY }}
+          echo ${{ github.token }} | helm registry login -u ${{ github.actor }} --password-stdin ${{ env.OCI_REGISTRY }}
           helm push ${{ env.ARTIFACT_DIR }}/${{ env.HELM_PACKAGE_DIR }}/radius-${{ env.CHART_VERSION }}.tgz oci://${{ env.OCI_REGISTRY }}/${{ env.OCI_REPOSITORY }}
 
   build-and-push-bicep-types:
     name: Publish Radius bicep types to ACR
     runs-on: ubuntu-latest
     environment: publish-bicep
-    steps: 
+    steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6-beta
         with:
           submodules: recursive
+
+      - name: 🚧 Setup Task
+        uses: go-task/setup-task@0ab1b2a65bc55236a3bc64cde78f80e20e8885c2 # v1.0.0
+        with:
+          repo-token: ${{ github.token }}
+
       - name: Parse release version and set environment variables
         run: python ./.github/scripts/get_release_version.py
+
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
           cache: true
+
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: '18'
+          node-version: .node-version
+
       - name: Generate Bicep extensibility types from OpenAPI specs
         run: |
           make generate-bicep-types VERSION=${{ env.REL_CHANNEL == 'edge' && 'latest' || env.REL_CHANNEL }}
+
       - name: Upload Radius Bicep types artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: radius-bicep-types
           path: ./hack/bicep-types-radius/generated
           if-no-files-found: error
-      - name: 'Login via Azure CLI'
+
+      - name: "Login via Azure CLI"
         if: github.repository == 'radius-project/radius' && ((startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'))
-        uses: azure/login@v2
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
         with:
           client-id: ${{ secrets.BICEPTYPES_CLIENT_ID }}
           tenant-id: ${{ secrets.BICEPTYPES_TENANT_ID }}
           subscription-id: ${{ secrets.BICEPTYPES_SUBSCRIPTION_ID }}
-      - name: Setup and verify bicep CLI
+
+      - name: 🔨 Install Bicep
         if: github.repository == 'radius-project/radius' && ((startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'))
-        run: |
-          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
-          chmod +x ./bicep
-          sudo mv ./bicep /usr/local/bin/bicep
-          bicep --version
-      - name: Publish bicep types 
+        run: task azure:install:bicep
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Publish bicep types
         if: github.repository == 'radius-project/radius' && ((startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'))
         run: |
           bicep publish-extension ./hack/bicep-types-radius/generated/index.json --target br:${{ env.BICEP_TYPES_REGISTRY }}/radius:${{ env.REL_CHANNEL == 'edge' && 'latest' || env.REL_CHANNEL }} --force
@@ -320,21 +357,25 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GH_RAD_CI_BOT_PAT }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6-beta
         with:
           submodules: recursive
+
       - name: Parse release version and set environment variables
         run: python ./.github/scripts/get_release_version.py
+
       - name: Download release artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           pattern: rad_cli_*
           merge-multiple: true
           path: ${{ env.RELEASE_PATH }}
+
       - name: generate checksum files
         run: |
           cd ${{ env.RELEASE_PATH }} && for i in *; do sha256sum -b $i > "$i.sha256"; done && cd -
           ls -l ${{ env.RELEASE_PATH }}
+
       - name: Create GitHub RC Release (pre-release and auto-generate release notes)
         if: ${{ contains(env.REL_VERSION, 'rc') }}
         run: |
@@ -344,6 +385,7 @@ jobs:
             --generate-notes \
             --verify-tag \
             --prerelease
+
       - name: Create GitHub Official Release
         if: ${{ !contains(env.REL_VERSION, 'rc') }}
         run: |
