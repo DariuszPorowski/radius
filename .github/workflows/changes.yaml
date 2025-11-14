@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+---
+name: Changes
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: 🔁 Changes
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    # outputs:
+    #   src: ${{ steps.dirs.outputs.filter1 }}
+    steps:
+      - name: 🩺 Debug
+        uses: raven-actions/debug@9dbdeb7eea607a7d73411895c65987e71d59a466 # v1.2.0
+
+      - name: ⤵️ Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: 🗃️ Filter1
+        id: filter1
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
+        with:
+          json: true
+          # Avoid using single or double quotes for multiline patterns
+          files_yaml: |
+            md:
+              - '.github/**/*.md'
+              - 'docs/**/*.md'
+              - 'docs/*.md'
+              - '**/*.yaml'
+
