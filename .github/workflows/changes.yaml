@@ -37,7 +37,7 @@ jobs:
           json: true
           # Avoid using single or double quotes for multiline patterns
           files_yaml: |
-            src:
+            aaa:
               - '**.go'
               - 'go.mod'
               - 'go.sum'
@@ -49,7 +49,7 @@ jobs:
           base: ${{ github.event_name == 'workflow_dispatch' && github.ref || '' }}
           list-files: json
           filters: |
-            src:
+            bbb:
               - '**.go'
               - 'go.mod'
               - 'go.sum'
