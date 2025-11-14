@@ -3,9 +3,6 @@
 name: Changes
 
 on:
-  push:
-    branches:
-      - dp/changes
   pull_request:
   workflow_dispatch:
 
