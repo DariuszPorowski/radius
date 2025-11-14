@@ -36,8 +36,8 @@ jobs:
           # Avoid using single or double quotes for multiline patterns
           files_yaml: |
             md:
-              - .github/**/*.md
-              - docs/**/*.md
-              - docs/*.md
-              - **/*.yaml
+              - '.github/**/*.md'
+              - 'docs/**/*.md'
+              - 'docs/*.md'
+              - '**/*.yaml'
 
