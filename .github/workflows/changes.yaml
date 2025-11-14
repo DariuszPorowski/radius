@@ -34,9 +34,10 @@ jobs:
         with:
           json: true
           # Avoid using single or double quotes for multiline patterns
-          files: |
-            .github/**/*.md
-            docs/**/*.md
-            docs/*.md
-            **/*.yaml
+          files_yaml: |
+            md:
+              - .github/**/*.md
+              - docs/**/*.md
+              - docs/*.md
+              - **/*.yaml
 
