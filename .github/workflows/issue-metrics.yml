@@ -29,39 +29,42 @@ jobs:
       issues: read
       pull-requests: read
     steps:
-      - name: Get Dates
-        id: date
+      - name: Configure
+        id: config
         run: |
-          # Calculate the date 7 days ago
-          echo "last_week=$(date -d '7 days ago' '+%Y-%m-%d')" >> "$GITHUB_OUTPUT"
-
-          # Calculate the first day of the previous month
+          # Calculate dates
+          last_week=$(date -d '7 days ago' '+%Y-%m-%d')
           first_day=$(date -d 'last month' '+%Y-%m-01')
-
-          # Calculate the last day of the previous month
           last_day=$(date -d "$first_day +1 month -1 day" '+%Y-%m-%d')
+          last_month="${first_day}..${last_day}"
 
-          #Set an environment variable with the date range
-          echo "${first_day}..${last_day}"
-          echo "last_month=${first_day}..${last_day}" >> "$GITHUB_OUTPUT"
+          # Determine type
+          TYPE="weekly" # Default
+          if [[ "$EVENT_NAME" == "schedule" ]]; then
+            if [[ "$SCHEDULE" == "0 8 1 * *" ]]; then
+              TYPE="monthly"
+            fi
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            TYPE="$INPUT_REPORT_TYPE"
+          fi
 
-      - name: Run Tool (weekly)
+          # Set query
+          if [[ "$TYPE" == "weekly" ]]; then
+            echo "search_query=repo:${REPOSITORY} is:issue is:pr created:>${last_week}" >> "$GITHUB_OUTPUT"
+          else
+            echo "search_query=repo:${REPOSITORY} is:issue is:pr created:${last_month}" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event_name == 'schedule' && github.event.schedule || '' }}
+          INPUT_REPORT_TYPE: ${{ github.event_name == 'workflow_dispatch' &&  github.event.inputs.report_type || '' }}
+
+      - name: Run Tool
         uses: github/issue-metrics@637a24e71b78bc10881e61972b19ea9ff736e14a # v3.25.2
-        if: ${{ github.event_name == 'schedule' && github.event.schedule == '0 8 * * 1' || (github.event_name == 'workflow_dispatch' && github.event.inputs.report_type == 'weekly') }}
         env:
           GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          # yamllint disable-line rule:quoted-strings
-          SEARCH_QUERY: "repo:${{ github.repository }} is:issue is:pr created:>${{ steps.date.outputs.last_week }}"
-
-      - name: Run Tool (monthly)
-        uses: github/issue-metrics@637a24e71b78bc10881e61972b19ea9ff736e14a # v3.25.2
-        if: ${{ github.event_name == 'schedule' && github.event.schedule == '0 9 1 * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.report_type == 'monthly') }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          # yamllint disable-line rule:quoted-strings
-          SEARCH_QUERY: "repo:${{ github.repository }} is:issue is:pr created:${{ steps.date.outputs.last_month }}"
+          SEARCH_QUERY: ${{ steps.config.outputs.search_query }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
