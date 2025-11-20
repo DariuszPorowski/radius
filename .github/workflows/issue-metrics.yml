@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+---
+name: Issue Metrics
+on:
+  schedule:
+    # Run weekly on Monday at 8:00 AM UTC
+    - cron: 0 8 * * 1
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: read
+
+jobs:
+  issue-metrics:
+    name: Issue Metrics
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Get Dates
+        id: date
+        run: |
+          # Calculate the date 7 days ago
+          echo "last_week=$(date -d '7 days ago' '+%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+          # Calculate the first day of the previous month
+          first_day=$(date -d 'last month' '+%Y-%m-01')
+
+          # Calculate the last day of the previous month
+          last_day=$(date -d "$first_day +1 month -1 day" '+%Y-%m-%d')
+
+          #Set an environment variable with the date range
+          echo "${first_day}..${last_day}"
+          echo "last_month=${first_day}..${last_day}" >> "$GITHUB_OUTPUT"
+
+      - name: Run Tool
+        uses: github/issue-metrics@637a24e71b78bc10881e61972b19ea9ff736e14a # v3.25.2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          # yamllint disable-line rule:quoted-strings
+          SEARCH_QUERY: "repo:${{ github.repository }} is:issue is:pr created:>${{ steps.date.outputs.last_week }}"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: issue-metrics
+          path: ./issue_metrics.md
+          retention-days: 30
+
+      - name: Job Summary
+        run: |
+          cat ./issue_metrics.md >> "$GITHUB_STEP_SUMMARY"
