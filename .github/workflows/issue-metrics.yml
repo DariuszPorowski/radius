@@ -43,7 +43,7 @@ jobs:
           last_month="${first_day}..${last_day}"
 
           # Determine type
-          TYPE="weekly" # Default
+          TYPE="monthly" # Default
           if [[ "$EVENT_NAME" == "schedule" ]]; then
             if [[ "$SCHEDULE" == "0 8 1 * *" ]]; then
               TYPE="monthly"
