@@ -1,12 +1,16 @@
 # yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
 ---
 name: Issue Metrics
+
 on:
   schedule:
     # Run weekly on Monday at 8:00 AM UTC
     - cron: 0 8 * * 1
     # Run monthly on the 1st at 8:00 AM UTC
     - cron: 0 8 1 * *
+  push:
+    branches:
+      - dp/issue-metrics
   workflow_dispatch: # Allow manual triggering
     inputs:
       report_type:
@@ -55,7 +59,7 @@ jobs:
             echo "search_query=repo:${REPOSITORY} is:issue is:pr created:${last_month}" >> "$GITHUB_OUTPUT"
           fi
         env:
-          REPOSITORY: ${{ github.repository }}
+          REPOSITORY: radius-project/radius # ${{ github.repository }}
           EVENT_NAME: ${{ github.event_name }}
           SCHEDULE: ${{ github.event_name == 'schedule' && github.event.schedule || '' }}
           INPUT_REPORT_TYPE: ${{ github.event_name == 'workflow_dispatch' &&  github.event.inputs.report_type || '' }}
