@@ -22,21 +22,17 @@ on:
   push:
     branches:
       - main
-      - "release/*"
+      - release/*
     paths:
-      - "versions.yaml"
+      - versions.yaml
   pull_request:
     branches:
       - main
-      - "release/*"
+      - release/*
     paths:
-      - "versions.yaml"
+      - versions.yaml
 
-permissions:
-  id-token: write
-  packages: write
-  pull-requests: write
-  contents: read
+permissions: {} # disable permissions
 
 env:
   GITHUB_TOKEN: ${{ secrets.GH_RAD_CI_BOT_PAT }}
@@ -44,7 +40,12 @@ env:
 jobs:
   generate_release_note:
     name: Generate release note from template
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      packages: write
+      pull-requests: write
+      contents: read
     # We should only create the release note if this is a pull request against main
     if: github.repository == 'radius-project/radius' && github.event_name == 'pull_request' && github.base_ref == 'main'
     env:
@@ -52,6 +53,8 @@ jobs:
     steps:
       - name: Checkout radius-project/radius
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
 
       - name: Get supported versions from versions.yaml
         id: get-supported-versions
@@ -99,7 +102,7 @@ jobs:
           header: relnote-${{ github.run_id }}
           number: ${{ github.event.pull_request.number }}
           hide: true
-          hide_classify: "OUTDATED"
+          hide_classify: OUTDATED
           message: |
             ## Release Information
             * Previous version: ${{ steps.latest-release-tag.outputs.result }}
@@ -139,13 +142,14 @@ jobs:
   release:
     name: Create a new Radius release
     if: github.repository == 'radius-project/radius' && github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: release
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           repository: radius-project/radius
           ref: main
+          persist-credentials: false
 
       - name: Checkout radius-project/radius@main
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -154,6 +158,7 @@ jobs:
           ref: main
           token: ${{ secrets.GH_RAD_CI_BOT_PAT }}
           path: radius
+          persist-credentials: false
 
       - name: Checkout radius-project/recipes@main
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -162,6 +167,7 @@ jobs:
           ref: main
           token: ${{ secrets.GH_RAD_CI_BOT_PAT }}
           path: recipes
+          persist-credentials: false
 
       - name: Checkout radius-project/dashboard@main
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -170,6 +176,7 @@ jobs:
           ref: main
           token: ${{ secrets.GH_RAD_CI_BOT_PAT }}
           path: dashboard
+          persist-credentials: false
 
       - name: Checkout radius-project/bicep-types-aws@main
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -178,6 +185,7 @@ jobs:
           ref: main
           token: ${{ secrets.GH_RAD_CI_BOT_PAT }}
           path: bicep-types-aws
+          persist-credentials: false
 
       - name: Set up GitHub credentials
         run: |

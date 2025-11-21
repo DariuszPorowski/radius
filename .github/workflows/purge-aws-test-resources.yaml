@@ -21,22 +21,28 @@ on:
   workflow_dispatch:
   schedule:
     # Run at 12:00AM PST every day.
-    - cron: "0 7 * * 0-6"
+    - cron: 0 7 * * 0-6
+
+permissions: {} # disable permissions
 
 env:
   AWS_REGION: us-west-2
-  AWS_RESOURCE_TYPES: "AWS::RDS::DBSubnetGroup,AWS::RDS::DBInstance,AWS::S3::Bucket,AWS::Logs::MetricFilter,AWS::Logs::LogGroup"
+  AWS_RESOURCE_TYPES: AWS::RDS::DBSubnetGroup,AWS::RDS::DBInstance,AWS::S3::Bucket,AWS::Logs::MetricFilter,AWS::Logs::LogGroup
   # The current GitHub action link
-  ACTION_LINK: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  ACTION_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
 jobs:
   purge_aws_resources:
     name: Delete old AWS resources created by tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.repository == 'radius-project/radius'
+    permissions:
+      contents: read
     steps:
       - name: Checkout the repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@00943011d9042930efac3dcd3a170e4273319bc8 # v5.1.0
