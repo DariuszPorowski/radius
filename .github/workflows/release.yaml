@@ -52,7 +52,7 @@ jobs:
       RELNOTE_FOUND: false
     steps:
       - name: Checkout radius-project/radius
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           persist-credentials: false
 
@@ -69,7 +69,7 @@ jobs:
           ./.github/scripts/release-get-version.sh ${{ steps.get-supported-versions.outputs.result }} "."
 
       - name: Find the previous tag
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         id: latest-release-tag
         with:
           github-token: ${{ secrets.GH_RAD_CI_BOT_PAT }}
@@ -82,7 +82,7 @@ jobs:
             return data.tag_name
 
       - name: Generate the release notes
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         id: generate-notes
         with:
           github-token: ${{ secrets.GH_RAD_CI_BOT_PAT }}
@@ -145,14 +145,14 @@ jobs:
     runs-on: ubuntu-24.04
     environment: release
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           repository: radius-project/radius
           ref: main
           persist-credentials: false
 
       - name: Checkout radius-project/radius@main
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           repository: radius-project/radius
           ref: main
@@ -161,7 +161,7 @@ jobs:
           persist-credentials: false
 
       - name: Checkout radius-project/recipes@main
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           repository: radius-project/recipes
           ref: main
@@ -170,7 +170,7 @@ jobs:
           persist-credentials: false
 
       - name: Checkout radius-project/dashboard@main
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           repository: radius-project/dashboard
           ref: main
@@ -179,7 +179,7 @@ jobs:
           persist-credentials: false
 
       - name: Checkout radius-project/bicep-types-aws@main
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           repository: radius-project/bicep-types-aws
           ref: main
@@ -206,7 +206,7 @@ jobs:
 
       - name: Check if release branch exists
         id: release-branch-exists
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           result-encoding: string
           script: |
